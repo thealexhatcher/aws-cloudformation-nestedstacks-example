@@ -1,0 +1,13 @@
+version: 0.2
+phases:
+  build:
+    commands:
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - cd src && make package S3_BUCKET=$S3_ARTIFACT_BUCKET S3_PREFIX="packaged/commit-$COMMIT_HASH"
+artifacts:
+  base-directory: src
+  files:
+  - resources.params.dev.json
+  - resources.params.uat.json
+  - resources.params.prod.json
+  - resources.out.yml

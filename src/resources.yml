@@ -1,0 +1,19 @@
+Description: >
+  Cloudformation Template Parent
+Parameters:
+  StageName:
+    Type: String   
+Resources:
+
+  lambda1:
+    Type: AWS::CloudFormation::Stack
+    Properties: 
+      TemplateURL: ./lambda1/template.out.yml
+
+  lambda2:
+    Type: AWS::CloudFormation::Stack
+    Properties: 
+      TemplateURL: ./lambda2/template.out.yml
+
+
+

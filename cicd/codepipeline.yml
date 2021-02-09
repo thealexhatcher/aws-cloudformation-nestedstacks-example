@@ -1,0 +1,204 @@
+Description: >
+  Template for CodePipeline 
+Parameters:
+  ArtifactBucket:
+    Type: String 
+  CodeStarConnectionArn:
+    Type: String
+  RepoId:
+    Type: String
+  Branch:
+    Type: String
+
+Resources:
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties: 
+      ServiceRole: !Sub ${CodeBuildRole.Arn}
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        EnvironmentVariables:
+        - Name: S3_ARTIFACT_BUCKET
+          Type: PLAINTEXT
+          Value: !Ref ArtifactBucket
+      Source:
+        Type: CODEPIPELINE
+      TimeoutInMinutes: 10
+
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore:
+        Location: !Ref ArtifactBucket
+        Type: S3
+      DisableInboundStageTransitions: [ ]
+      Name: !Sub ${AWS::StackName}-pipeline
+      RoleArn: !Sub ${PipelineRole.Arn}
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Version: '1'
+                Owner: AWS
+                Category: Source
+                Provider: CodeStarSourceConnection
+              OutputArtifacts:
+                - Name: SourceArtifact
+              RunOrder: 1
+              Configuration:
+                ConnectionArn: !Ref CodeStarConnectionArn
+                FullRepositoryId: !Ref RepoId
+                BranchName: !Ref Branch
+                OutputArtifactFormat: "CODE_ZIP"
+                
+        - Name: Build
+          Actions:
+            - Name: Package
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              InputArtifacts:
+                - Name: SourceArtifact
+              OutputArtifacts:
+                - Name: BuildArtifact
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              RunOrder: '1'
+
+        - Name: Deploy
+          Actions:
+            - Name: Deploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              InputArtifacts:
+                - Name: BuildArtifact
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                RoleArn: !Sub ${CFNRole.Arn}
+                StackName: !Sub ${AWS::StackName}-resources
+                TemplateConfiguration: !Sub BuildArtifact::resources.params.dev.json
+                TemplatePath: BuildArtifact::resources.out.yml
+              RunOrder: '1'
+
+  CFNRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: 
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: 
+            - cloudformation.amazonaws.com
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+      - PolicyName: Policy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Action:
+            - s3:*
+            - lambda:*
+            - cloudformation:*
+            - logs:*
+            - iam:*
+            Effect: Allow
+            Resource: '*'
+
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: 
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: 
+              - codepipeline.amazonaws.com
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyName: Policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                - codepipeline:*
+                - ssm:*
+                - logs:*
+                - iam:PassRole
+                - cloudformation:CreateStack
+                - cloudformation:DescribeStacks
+                - cloudformation:DeleteStack
+                - cloudformation:UpdateStack
+                - cloudformation:CreateChangeSet
+                - cloudformation:ExecuteChangeSet
+                - cloudformation:DeleteChangeSet
+                - cloudformation:DescribeChangeSet
+                - cloudformation:SetStackPolicy
+                - codebuild:StartBuild
+                - codebuild:BatchGetBuilds
+                - codestar-connections:UseConnection
+                - codestar-connections:GetConnection
+                Effect: Allow
+                Resource: '*'
+        - PolicyName: S3
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                - s3:*
+                Effect: Allow
+                Resource:
+                - !Sub arn:aws:s3:::${ArtifactBucket}/*
+                - !Sub arn:aws:s3:::${ArtifactBucket}
+
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: 
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: 
+              - codebuild.amazonaws.com
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyName: Policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                - ssm:*
+                - logs:*
+                - cloudformation:DescribeStacks
+                - cloudformation:ValidateTemplate
+                Effect: Allow
+                Resource: '*'
+        - PolicyName: S3
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                - s3:*
+                Effect: Allow
+                Resource:
+                - !Sub arn:aws:s3:::${ArtifactBucket}/*
+                - !Sub arn:aws:s3:::${ArtifactBucket}
