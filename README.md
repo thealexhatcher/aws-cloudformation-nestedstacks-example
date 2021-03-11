@@ -31,7 +31,7 @@ Validate, Package, and Deploy all aws-cloudformation-nestedstacks-example resour
 ```bash
 cd src 
 make deploy \
- STACKNAME=aws-nestedstacks-example-resources" \
+ STACKNAME=aws-nestedstacks-example-resources \
  S3_BUCKET=$S3BUCKET S3_PREFIX=local 
 cd -
 ```
