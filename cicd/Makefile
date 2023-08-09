@@ -2,7 +2,7 @@ SHELL := /bin/bash
 STACKNAME?="encapture-cfn-example-pipeline"
 ARTIFACT_BUCKET?="056234693470-us-east-2-deployment"
 REPO_NAME?="encapture-cfn-example"
-BRANCH?="master"
+BRANCH?="main"
 
 validate:
 	aws cloudformation validate-template --template-body file://codepipeline.yml --output text
