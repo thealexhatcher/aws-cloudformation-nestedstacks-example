@@ -134,3 +134,8 @@ dmypy.json
 ### 
 
 **/*.out.yml
+
+##
+# File Systems
+## 
+.DS_Store 

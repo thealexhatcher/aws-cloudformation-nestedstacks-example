@@ -1,6 +1,6 @@
 SHELL := /bin/bash
-STACKNAME?= "aws-nestedstacks-example-resources"
-S3_BUCKET?= "OVERRIDE_REQUIRED" #OVERRIDE THIS BUCKET NAME
+STACKNAME?= "encapture-stacks"
+S3_BUCKET?= "056234693470-us-east-2-deployment" #OVERRIDE THIS BUCKET NAME
 S3_PREFIX?= "local"
 clean:
 	rm -f lambda1/template.out.yml
@@ -10,8 +10,10 @@ validate:
 	aws cloudformation validate-template --template-body file://lambda1/template.yml --output text
 	aws cloudformation validate-template --template-body file://lambda2/template.yml --output text
 	aws cloudformation validate-template --template-body file://resources.yml --output text
-package: clean validate
+package: clean 
+	find ./lambda1 -not -path '*/.*' -exec touch -a -m -t"201001010000.00" {} \;
 	aws cloudformation package --template-file lambda1/template.yml --s3-bucket $(S3_BUCKET) --s3-prefix $(S3_PREFIX) --output-template-file lambda1/template.out.yml
+	find ./lambda2 -not -path '*/.*' -exec touch -a -m -t"201001010000.00" {} \;
 	aws cloudformation package --template-file lambda2/template.yml --s3-bucket $(S3_BUCKET) --s3-prefix $(S3_PREFIX) --output-template-file lambda2/template.out.yml
 	aws cloudformation package --template-file resources.yml --s3-bucket $(S3_BUCKET) --s3-prefix $(S3_PREFIX) --output-template-file resources.out.yml
 deploy: package 
